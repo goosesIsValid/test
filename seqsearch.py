@@ -178,6 +178,15 @@ parsed_data_df= pd.read_csv("processed_accessions_b.fa_names.tsv", sep="\t", hea
 # --------------------------------------------------------------------
 all_split_files = []
 for fasta in sorted(fasta_files):
+
+
+    if infilename not in GroupedHits:
+        GroupedHits[infilename] = {
+            "name":        infilename,
+            "sequences":   []
+        }
+
+
     full_path = os.path.join(args.indir, fasta)
     split_files = split_fasta_file(full_path, args.indir)
     print(f"Fasta file {fasta} split into {len(split_files)} files:")
@@ -335,12 +344,12 @@ for fasta_file in sorted(all_split_files):
             delimiter= r"[#]"
             hit["qseqid"]= re.split(delimiter, hit["qseqid"])[0]
 
-            print("GroupedHits: ",GroupedHits)
-            if infilename not in GroupedHits:
-                GroupedHits[infilename] = {
-                    "name":  infilename,
-                    "sequences": []
-                }
+            # print("GroupedHits: ",GroupedHits)
+            # if infilename not in GroupedHits:
+            #     GroupedHits[infilename] = {
+            #         "name":  infilename,
+            #         "sequences": []
+            #     }
 
             # which sequence (== qseqid) does this hit belong to?
             seq_wrap = get_sequence_wrapper(
