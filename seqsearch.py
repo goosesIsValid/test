@@ -13,6 +13,40 @@ import sys
 import subprocess
 import glob
 import numpy as np
+
+from pathlib import Path
+from Bio import SeqIO
+
+
+# --------------------------------------------------------------------
+# LRM(07242025)
+# Split FASTA files when there is more than one sequence in the file.
+# Create a subdirectory to store each split file.
+# Return the path of every file.
+# --------------------------------------------------------------------
+def prepare_fasta_files(indir: Path) -> list[Path]:
+    all_files: list[Path] = []
+    for fa in indir.iterdir():
+        if fa.suffix.lower() not in {".fa", ".fna", ".fasta"}:
+            continue
+
+        records = list(SeqIO.parse(fa, "fasta"))
+        # Do not split if only one record
+        if len(records) <= 1:
+            all_files.append(fa)
+            continue
+
+        # Name the subdir after the fasta file (without suffix)
+        # Example: Splits for HM119428.fa will go into HM119428/
+        subdir = fa.with_suffix("")
+        subdir.mkdir(parents=True, exist_ok=True)  # pathlib‑style mkdir :contentReference[oaicite:0]{index=0}
+        for i, rec in enumerate(records, start=1):
+            new_path = subdir / f"{fa.stem}_{i}{fa.suffix}"
+            SeqIO.write(rec, new_path, "fasta")    # Biopython SeqIO write 
+            all_files.append(new_path)
+
+    return sorted(all_files)
+
 #
 # parse ARGS
 #
@@ -117,16 +151,23 @@ GroupedHits = {}
 
 
 
-
+# LRM 07292025: Old find FASTA file code
 # for eden: get list of fasta files in input directory (.fa/.fna.fasta) 
-if args.verbose:
-    print("Files in input directory: ", os.listdir(args.indir))
+# if args.verbose:
+#     print("Files in input directory: ", os.listdir(args.indir))
 # get list of fasta files
-fasta_files = []
-for  infilename in os.listdir(args.indir):
-    if infilename.endswith(".fa") or infilename.endswith(".fna") or infilename.endswith(".fasta"):
-            fasta_files.append (infilename)
-print("FASTA files found: ", fasta_files)
+# fasta_files = []
+# for  infilename in os.listdir(args.indir):
+#     if infilename.endswith(".fa") or infilename.endswith(".fna") or infilename.endswith(".fasta"):
+#             fasta_files.append (infilename)
+# print("FASTA files found: ", fasta_files)
+
+indir = Path(args.indir)
+fasta_files = prepare_fasta_files(indir)
+
+print(f"FASTA files to process ({len(fasta_files)}):")
+for p in fasta_files:
+    print("  •", p.relative_to(indir))
 
  #parsed_data_df is df for the processed_accessions_b.tsv file
 parsed_data_df= pd.read_csv("processed_accessions_b.fa_names.tsv", sep="\t", header=0)
@@ -139,9 +180,14 @@ for infilename in sorted(fasta_files):
     print("Processing fasta file: ", infilename)
     fasta_file_path = os.path.join(args.indir, infilename)
     #create output file paths
-    blastasn_output_filepath= os.path.join(args.outdir, infilename + ".asn")
-    blastcsv_output_filepath= os.path.join(args.outdir, infilename + ".csv")
-    blasthtml_output_filepath= os.path.join(args.outdir, infilename + ".html")
+    out_base = fa.parent / basename         # same directory the split file lives in (need to change!!!!!)
+    blastasn_output_filepath = f"{out_base}.asn"
+    blastcsv_output_filepath = f"{out_base}.csv"
+    blasthtml_output_filepath = f"{out_base}.html"
+    # LRM 07292025: Old code for .asn, .csv, and .html output file paths
+    # blastasn_output_filepath= os.path.join(args.outdir, infilename + ".asn")
+    # blastcsv_output_filepath= os.path.join(args.outdir, infilename + ".csv")
+    # blasthtml_output_filepath= os.path.join(args.outdir, infilename + ".html")
 
     #blast output format commands.
 
