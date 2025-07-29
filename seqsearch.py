@@ -34,41 +34,6 @@ print("OUT_DIR:", args.outdir)
 print("OUT_JSON:", args.json)
 print("OUT_HTML:", args.html)
 
-# --------------------------------------------------------------------
-# LRM(07242025)
-# Create FASTA file per sequence
-# --------------------------------------------------------------------
-def split_fasta_file(filepath, outdir):
-    base_name, extension = os.path.splitext(os.path.basename(filepath))
-    split_files = []
-    sequence_records = []  # keep the header and sequence together
-    with open(filepath, 'r') as infile:
-        current_header = None
-        current_seq_lines = []
-        for line in infile:
-            if line.startswith('>'):
-                if current_header is not None:
-                    # finish previous record
-                    sequence_records.append((current_header, current_seq_lines))
-                current_header = line
-                current_seq_lines = []
-            else:
-                current_seq_lines.append(line)
-        if current_header:
-            sequence_records.append((current_header, current_seq_lines))
-    # If there's only one sequence, keep the file as is
-    if len(sequence_records) == 1:
-        return [filepath]
-    # Otherwise, write out each sequence to its own file
-    for i, (header, seq_lines) in enumerate(sequence_records, start=1):
-        out_filename = os.path.join(outdir, f"{base_name}-{i}{extension}")
-        with open(out_filename, 'w') as outfile:
-            outfile.write(header)
-            outfile.write(''.join(seq_lines))
-        split_files.append(out_filename)
-    return split_files
-
-
 #
 # read version number
 #
@@ -94,7 +59,6 @@ if first_4_lines:
 
 
 # --------------------------------------------------------------------
-# LRM(07112025)
 # Return the “sequence” dict for qseqid inside GroupedHits[file]
 # --------------------------------------------------------------------
 def get_sequence_wrapper(file_dict: dict, qseqid: str, blast_csv: str, blast_html: str) -> dict:
@@ -150,12 +114,8 @@ rankmap = {
 GroupedHits = {}
 
 
-# --------------------------------------------------------------------
-# LRM(07242025)
-# Create output directory for split files
-# --------------------------------------------------------------------
-# split_dir = os.path.join(args.indir, "split")
-# os.makedirs(split_dir, exist_ok=True)
+
+
 
 
 # for eden: get list of fasta files in input directory (.fa/.fna.fasta) 
@@ -172,86 +132,30 @@ print("FASTA files found: ", fasta_files)
 parsed_data_df= pd.read_csv("processed_accessions_b.fa_names.tsv", sep="\t", header=0)
 
 
-# --------------------------------------------------------------------
-# LRM(07242025)
-# Loop over FASTA files
-# --------------------------------------------------------------------
-all_split_files = []
-for fasta in sorted(fasta_files):
-
-
-    if infilename not in GroupedHits:
-        GroupedHits[infilename] = {
-            "name":        infilename,
-            "sequences":   []
-        }
-
-
-    full_path = os.path.join(args.indir, fasta)
-    split_files = split_fasta_file(full_path, args.indir)
-    print(f"Fasta file {fasta} split into {len(split_files)} files:")
-    for sf in split_files:
-        print("  ", sf)
-    all_split_files.extend(split_files)
-
-
-# --------------------------------------------------------------------
-# LRM(07242025)
-# Now all_split_files contains individual FASTA files with one sequence
-# --------------------------------------------------------------------
-for fasta_file in sorted(all_split_files):
-    print("\n\n----------------------------------------------------------------------")
-    print("Processing fasta file: ", os.path.basename(fasta_file))
-    # Set up file paths for output, etc.
-    blastasn_output_filepath = os.path.join(args.outdir, os.path.basename(fasta_file) + ".asn")
-    blastcsv_output_filepath = os.path.join(args.outdir, os.path.basename(fasta_file) + ".csv")
-    blasthtml_output_filepath = os.path.join(args.outdir, os.path.basename(fasta_file) + ".html")
-    
-    # Build BLAST commands as before
-    blastasn_cmd = ["blastn", "-db", args.blastdb, "-query", fasta_file, "-out", blastasn_output_filepath, "-outfmt", "11"]
-    blastcsv_cmd = ["blast_formatter", "-archive", blastasn_output_filepath, "-out", blastcsv_output_filepath, "-outfmt", "10"]
-    blasthtml_cmd = ["blast_formatter", "-archive", blastasn_output_filepath, "-out", blasthtml_output_filepath, "-html"]
-    print("ASN Format Command:", " ".join(blastasn_cmd))
-    print("CSV Format Command:", " ".join(blastcsv_cmd))
-    print("HTML Format Command:", " ".join(blasthtml_cmd))
-
-    # Run commands
-    subprocess.run(blastasn_cmd, capture_output=True, text=True, check=False)
-    print("Blast .asn output file:", blastasn_output_filepath)
-    subprocess.run(blastcsv_cmd, capture_output=True, text=True, check=False)
-    print("Blast .csv output file:", blastcsv_output_filepath)
-    subprocess.run(blasthtml_cmd, capture_output=True, text=True, check=False)
-    print("Blast .html output file:", blasthtml_output_filepath)
-
-
-# --------------------------------------------------------------------
-# LRM(07242025)
-# Old code to iterate over FASTA files
-# --------------------------------------------------------------------
 # iterate over fasta files
-# for infilename in sorted(fasta_files):
-#     # read in fasta file
-#     print("\n\n----------------------------------------------------------------------")
-#     print("Processing fasta file: ", infilename)
-#     fasta_file_path = os.path.join(args.indir, infilename)
-#     #create output file paths
-#     blastasn_output_filepath= os.path.join(args.outdir, infilename + ".asn")
-#     blastcsv_output_filepath= os.path.join(args.outdir, infilename + ".csv")
-#     blasthtml_output_filepath= os.path.join(args.outdir, infilename + ".html")
+for infilename in sorted(fasta_files):
+    # read in fasta file
+    print("\n\n----------------------------------------------------------------------")
+    print("Processing fasta file: ", infilename)
+    fasta_file_path = os.path.join(args.indir, infilename)
+    #create output file paths
+    blastasn_output_filepath= os.path.join(args.outdir, infilename + ".asn")
+    blastcsv_output_filepath= os.path.join(args.outdir, infilename + ".csv")
+    blasthtml_output_filepath= os.path.join(args.outdir, infilename + ".html")
 
-#     #blast output format commands.
+    #blast output format commands.
 
-#     blastasn_cmd = ["blastn", "-db", args.blastdb , "-query", fasta_file_path , "-out", blastasn_output_filepath, "-outfmt", "11"]
-#     blastcsv_cmd = ["blast_formatter", "-archive", blastasn_output_filepath , "-out", blastcsv_output_filepath, "-outfmt", "10"]
-#     blasthtml_cmd = ["blast_formatter", "-archive", blastasn_output_filepath,  "-out", blasthtml_output_filepath, "-html" ]
-#     print("ASN Format Command:", " ".join(blastasn_cmd), "\n", "CSV Format Command:", " ".join(blastcsv_cmd), "\n", "HTML Format Command:", " ".join(blasthtml_cmd))
+    blastasn_cmd = ["blastn", "-db", args.blastdb , "-query", fasta_file_path , "-out", blastasn_output_filepath, "-outfmt", "11"]
+    blastcsv_cmd = ["blast_formatter", "-archive", blastasn_output_filepath , "-out", blastcsv_output_filepath, "-outfmt", "10"]
+    blasthtml_cmd = ["blast_formatter", "-archive", blastasn_output_filepath,  "-out", blasthtml_output_filepath, "-html" ]
+    print("ASN Format Command:", " ".join(blastasn_cmd), "\n", "CSV Format Command:", " ".join(blastcsv_cmd), "\n", "HTML Format Command:", " ".join(blasthtml_cmd))
 
-    # db_output_asn = subprocess.run(blastasn_cmd, capture_output=True, text=True)
-    # print("Blast .asn output files:", blastasn_output_filepath)
-    # db_output_csv = subprocess.run(blastcsv_cmd, capture_output=True, text=True)
-    # print("Blast .csv output files:", blastcsv_output_filepath)
-    # db_output_html = subprocess.run(blasthtml_cmd, capture_output=True, text=True)
-    # print("Blast .html output files:", blasthtml_output_filepath)
+    db_output_asn = subprocess.run(blastasn_cmd, capture_output=True, text=True)
+    print("Blast .asn output files:", blastasn_output_filepath)
+    db_output_csv = subprocess.run(blastcsv_cmd, capture_output=True, text=True)
+    print("Blast .csv output files:", blastcsv_output_filepath)
+    db_output_html = subprocess.run(blasthtml_cmd, capture_output=True, text=True)
+    print("Blast .html output files:", blasthtml_output_filepath)
 
 
 
@@ -302,8 +206,8 @@ for fasta_file in sorted(all_split_files):
             hit["bitscore"]= row["bitscore"]
             hit["qseqid"]= row["qseqid"]
             hit["sseqid"]= row["sseqid"]
-            hit["ictv_id"]= row["ICTV_ID"]
-            hit["isolate_id"]= row["Isolate_ID"]
+            hit["ICTV_ID"]= row["ICTV_ID"]
+            hit["isolate_ID"]= row["Isolate_ID"]
             hit["exemplar_additional"]= row["Exemplar_Additional"]
             hit["virus_names"]= row["Virus_Names"]
 
@@ -344,12 +248,11 @@ for fasta_file in sorted(all_split_files):
             delimiter= r"[#]"
             hit["qseqid"]= re.split(delimiter, hit["qseqid"])[0]
 
-            # print("GroupedHits: ",GroupedHits)
-            # if infilename not in GroupedHits:
-            #     GroupedHits[infilename] = {
-            #         "name":  infilename,
-            #         "sequences": []
-            #     }
+            if infilename not in GroupedHits:
+                GroupedHits[infilename] = {
+                    "name":  infilename,
+                    "sequences": []
+                }
 
             # which sequence (== qseqid) does this hit belong to?
             seq_wrap = get_sequence_wrapper(
